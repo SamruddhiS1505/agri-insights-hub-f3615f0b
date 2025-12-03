@@ -1,6 +1,8 @@
 import { NavLink } from '@/components/NavLink';
-import { Home, LineChart, BarChart3, Leaf, Menu, X } from 'lucide-react';
+import { Home, LineChart, BarChart3, Leaf, Menu, X, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 const navItems = [
   { title: 'Dashboard', url: '/', icon: Home },
@@ -10,6 +12,15 @@ const navItems = [
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: 'Signed out',
+      description: 'You have been successfully signed out.',
+    });
+  };
 
   return (
     <>
@@ -71,16 +82,22 @@ const Sidebar = () => {
           ))}
         </nav>
 
-        {/* Footer */}
+        {/* User & Logout */}
         <div className="p-4 border-t border-sidebar-border">
-          <div className="bg-sidebar-accent/50 rounded-lg p-4">
-            <p className="text-xs text-sidebar-foreground/70 mb-2">
-              Need help with your crops?
-            </p>
-            <p className="text-sm text-sidebar-foreground">
-              Use our smart analytics to make better farming decisions.
-            </p>
-          </div>
+          {user && (
+            <div className="mb-3 px-2">
+              <p className="text-xs text-sidebar-foreground/70 truncate">
+                {user.email}
+              </p>
+            </div>
+          )}
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sidebar-foreground/80 hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
     </>
