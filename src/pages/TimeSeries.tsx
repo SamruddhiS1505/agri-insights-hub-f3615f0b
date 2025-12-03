@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { getTimeSeries, getPlot, TimeSeriesParams, TimeSeriesDataPoint } from '@/api/api';
+import { useState, useRef } from 'react';
+import { getTimeSeries, TimeSeriesParams, TimeSeriesDataPoint } from '@/api/api';
 import TimeSeriesChart from '@/components/TimeSeriesChart';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -20,6 +20,7 @@ const FREQ_OPTIONS = [
 ];
 
 const TimeSeries = () => {
+  const chartRef = useRef<HTMLDivElement>(null);
   const [params, setParams] = useState<TimeSeriesParams>({
     farmer_id: '',
     crop: '',
@@ -71,10 +72,10 @@ const TimeSeries = () => {
   };
 
   const handleDownloadPlot = async () => {
-    if (!params.farmer_id || !params.metric_name || !params.date_from || !params.date_to) {
+    if (chartData.length === 0) {
       toast({
-        title: 'Missing Fields',
-        description: 'Please fill in the required fields first.',
+        title: 'No Data',
+        description: 'Generate an analysis first before downloading.',
         variant: 'destructive',
       });
       return;
@@ -82,19 +83,20 @@ const TimeSeries = () => {
 
     setIsDownloading(true);
     try {
-      const blob = await getPlot(params);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `timeseries_plot_${params.farmer_id}_${params.metric_name}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast({
-        title: 'Download Started',
-        description: 'Your plot is being downloaded.',
-      });
+      const canvas = chartRef.current?.querySelector('canvas');
+      if (canvas) {
+        const url = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `timeseries_plot_${params.farmer_id}_${params.metric_name}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({
+          title: 'Download Complete',
+          description: 'Your plot has been downloaded.',
+        });
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -288,7 +290,7 @@ const TimeSeries = () => {
         </div>
 
         {/* Chart */}
-        <div className="animate-slide-up">
+        <div className="animate-slide-up" ref={chartRef}>
           <TimeSeriesChart
             data={chartData}
             title={`${params.metric_name || 'Metric'} Analysis`}
