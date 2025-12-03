@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { getTimeSeries, TimeSeriesParams, TimeSeriesDataPoint } from '@/api/api';
+import { supabase } from '@/integrations/supabase/client';
 import TimeSeriesChart from '@/components/TimeSeriesChart';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -19,8 +20,19 @@ const FREQ_OPTIONS = [
   { value: 'M', label: 'Monthly' },
 ];
 
+interface AvailableOptions {
+  farmerIds: string[];
+  crops: string[];
+  metrics: string[];
+}
+
 const TimeSeries = () => {
   const chartRef = useRef<HTMLDivElement>(null);
+  const [availableOptions, setAvailableOptions] = useState<AvailableOptions>({
+    farmerIds: [],
+    crops: [],
+    metrics: [],
+  });
   const [params, setParams] = useState<TimeSeriesParams>({
     farmer_id: '',
     crop: '',
@@ -33,6 +45,32 @@ const TimeSeries = () => {
   const [chartData, setChartData] = useState<TimeSeriesDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Fetch available options from database
+  useEffect(() => {
+    const fetchOptions = async () => {
+      const { data, error } = await supabase
+        .from('crop_data')
+        .select('farmer_id, crop, metric_name');
+      
+      if (!error && data) {
+        const farmerIds = [...new Set(data.map(d => d.farmer_id))];
+        const crops = [...new Set(data.map(d => d.crop))];
+        const metrics = [...new Set(data.map(d => d.metric_name))];
+        setAvailableOptions({ farmerIds, crops, metrics });
+        
+        // Auto-select first options if available
+        if (farmerIds.length > 0 || metrics.length > 0) {
+          setParams(prev => ({
+            ...prev,
+            farmer_id: farmerIds[0] || '',
+            metric_name: metrics[0] || '',
+          }));
+        }
+      }
+    };
+    fetchOptions();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -139,14 +177,17 @@ const TimeSeries = () => {
                 <User className="w-4 h-4 text-primary" />
                 Farmer ID <span className="text-destructive">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 name="farmer_id"
                 value={params.farmer_id}
                 onChange={handleChange}
-                placeholder="Enter farmer ID"
-                className="input-field"
-              />
+                className="input-field cursor-pointer"
+              >
+                <option value="">Select farmer ID</option>
+                {availableOptions.farmerIds.map((id) => (
+                  <option key={id} value={id}>{id}</option>
+                ))}
+              </select>
             </div>
 
             {/* Crop */}
@@ -155,14 +196,17 @@ const TimeSeries = () => {
                 <Leaf className="w-4 h-4 text-primary" />
                 Crop (Optional)
               </label>
-              <input
-                type="text"
+              <select
                 name="crop"
                 value={params.crop}
                 onChange={handleChange}
-                placeholder="e.g., Wheat"
-                className="input-field"
-              />
+                className="input-field cursor-pointer"
+              >
+                <option value="">All crops</option>
+                {availableOptions.crops.map((crop) => (
+                  <option key={crop} value={crop}>{crop}</option>
+                ))}
+              </select>
             </div>
 
             {/* Metric Name */}
@@ -171,14 +215,17 @@ const TimeSeries = () => {
                 <FileText className="w-4 h-4 text-primary" />
                 Metric Name <span className="text-destructive">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 name="metric_name"
                 value={params.metric_name}
                 onChange={handleChange}
-                placeholder="e.g., yield, rainfall"
-                className="input-field"
-              />
+                className="input-field cursor-pointer"
+              >
+                <option value="">Select metric</option>
+                {availableOptions.metrics.map((metric) => (
+                  <option key={metric} value={metric}>{metric}</option>
+                ))}
+              </select>
             </div>
 
             {/* Date From */}
